@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScrambleKeeper</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+    color: #f0c040;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  /* Timer bar */
+  .timer-bar {
+    max-width: 960px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .timer-display {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 90px;
+    text-align: center;
+    color: #eee;
+    transition: color 0.3s;
+  }
+  .timer-display.warning { color: #f0c040; }
+  .timer-display.danger { color: #e74c3c; }
+  .timer-display.over { color: #e74c3c; animation: pulse 0.8s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .timer-progress-wrap {
+    flex: 1;
+    max-width: 400px;
+    height: 8px;
+    background: #0f1a30;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .timer-progress {
+    height: 100%;
+    background: #4ecca3;
+    border-radius: 4px;
+    transition: width 0.25s linear, background 0.3s;
+  }
+  .timer-progress.warning { background: #f0c040; }
+  .timer-progress.danger { background: #e74c3c; }
+  .timer-btn {
+    background: #16213e;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .timer-btn:hover { border-color: #f0c040; color: #f0c040; }
+  .timer-btn.active { border-color: #4ecca3; color: #4ecca3; }
+  .timer-setting {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: #666;
+  }
+  .timer-setting select {
+    background: #0f1a30;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    max-width: 960px;
+    margin: 0 auto 24px;
+  }
+  .player-card {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 16px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .player-card.active { border-color: #f0c040; }
+  .player-card.winner { border-color: #4ecca3; box-shadow: 0 0 20px rgba(78,204,163,0.3); }
+  .player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .player-name {
+    font-size: 1rem;
+    font-weight: 600;
+    background: none;
+    border: none;
+    color: #eee;
+    width: 120px;
+    border-bottom: 1px dashed #444;
+    padding: 2px 4px;
+    outline: none;
+  }
+  .player-name:focus { border-bottom-color: #f0c040; }
+  .total-score {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #f0c040;
+  }
+  .player-card.winner .total-score { color: #4ecca3; }
+  .turns {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+  }
+  .turn-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+  .turn-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  .turn-score { font-weight: 600; }
+  .turn-score.negative { color: #e74c3c; }
+  .turn-running { color: #777; font-size: 0.75rem; }
+  .turn-del {
+    background: none; border: none; color: #555; cursor: pointer;
+    font-size: 0.75rem; padding: 0 4px;
+  }
+  .turn-del:hover { color: #e74c3c; }
+  .add-score {
+    display: flex;
+    gap: 8px;
+  }
+  .add-score input {
+    flex: 1;
+    background: #0f1a30;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #eee;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .add-score input:focus { border-color: #f0c040; }
+  .add-score button {
+    background: #f0c040;
+    color: #1a1a2e;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .add-score button:hover { background: #f7d060; }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .controls button {
+    background: #16213e;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 18px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .controls button:hover { border-color: #f0c040; color: #f0c040; }
+  .controls button.danger:hover { border-color: #e74c3c; color: #e74c3c; }
+  .round-indicator {
+    text-align: center;
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+  }
+  .crown { font-size: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>SCRAMBLEKEEPER</h1>
+<p class="subtitle">Scrabble Score Tracker</p>
+<div class="round-indicator" id="roundInfo">Round 1</div>
+
+<!-- Timer -->
+<div class="timer-bar" id="timerBar">
+  <button class="timer-btn" id="timerToggle" onclick="toggleTimer()">Start</button>
+  <div class="timer-display" id="timerDisplay">2:00</div>
+  <div class="timer-progress-wrap">
+    <div class="timer-progress" id="timerProgress" style="width:100%"></div>
+  </div>
+  <button class="timer-btn" id="timerReset" onclick="resetTimer()">Reset</button>
+  <div class="timer-setting">
+    <select id="timerDuration" onchange="changeTimerDuration()">
+      <option value="60">1 min</option>
+      <option value="120" selected>2 min</option>
+      <option value="180">3 min</option>
+      <option value="300">5 min</option>
+      <option value="0">Off</option>
+    </select>
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+<div class="controls">
+  <button onclick="undoLast()">Undo Last</button>
+  <button onclick="endGame()">End Game (deduct tiles)</button>
+  <button class="danger" onclick="newGame()">New Game</button>
+</div>
+
+<script>
+const SAVE_KEY = 'scramblekeeper';
+let state = loadState() || freshState();
+
+// Timer state
+let timerDuration = 120; // seconds
+let timerRemaining = 120;
+let timerRunning = false;
+let timerInterval = null;
+let timerAudioCtx = null;
+
+function freshState() {
+  return {
+    players: [
+      { name: 'Player 1', turns: [] },
+      { name: 'Player 2', turns: [] },
+      { name: 'Player 3', turns: [] },
+      { name: 'Player 4', turns: [] }
+    ],
+    currentPlayer: 0,
+    ended: false
+  };
+}
+
+function loadState() {
+  try {
+    const s = localStorage.getItem(SAVE_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+}
+
+function save() {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+
+function total(player) {
+  return player.turns.reduce((s, t) => s + t, 0);
+}
+
+function currentRound() {
+  const counts = state.players.map(p => p.turns.length);
+  return Math.min(...counts) + 1;
+}
+
+function leadingPlayer() {
+  let best = -Infinity, idx = -1;
+  state.players.forEach((p, i) => {
+    const t = total(p);
+    if (t > best) { best = t; idx = i; }
+  });
+  return idx;
+}
+
+// --- Timer functions ---
+function beep() {
+  try {
+    if (!timerAudioCtx) timerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = timerAudioCtx.createOscillator();
+    const gain = timerAudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(timerAudioCtx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.3;
+    osc.start();
+    osc.stop(timerAudioCtx.currentTime + 0.15);
+    setTimeout(() => {
+      const osc2 = timerAudioCtx.createOscillator();
+      const gain2 = timerAudioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(timerAudioCtx.destination);
+      osc2.frequency.value = 660;
+      gain2.gain.value = 0.3;
+      osc2.start();
+      osc2.stop(timerAudioCtx.currentTime + 0.25);
+    }, 200);
+  } catch(e) {}
+}
+
+function formatTime(secs) {
+  const neg = secs < 0;
+  const abs = Math.abs(secs);
+  const m = Math.floor(abs / 60);
+  const s = abs % 60;
+  return (neg ? '-' : '') + m + ':' + String(s).padStart(2, '0');
+}
+
+function updateTimerUI() {
+  const display = document.getElementById('timerDisplay');
+  const progress = document.getElementById('timerProgress');
+  const toggle = document.getElementById('timerToggle');
+
+  if (timerDuration === 0) {
+    display.textContent = '--:--';
+    display.className = 'timer-display';
+    progress.style.width = '100%';
+    progress.className = 'timer-progress';
+    toggle.textContent = '--';
+    return;
+  }
+
+  display.textContent = formatTime(timerRemaining);
+  toggle.textContent = timerRunning ? 'Pause' : 'Start';
+  toggle.className = 'timer-btn' + (timerRunning ? ' active' : '');
+
+  const pct = Math.max(0, (timerRemaining / timerDuration) * 100);
+  progress.style.width = pct + '%';
+
+  // color states
+  let cls = '';
+  if (timerRemaining <= 0) cls = 'over';
+  else if (timerRemaining <= 15) cls = 'danger';
+  else if (timerRemaining <= 30) cls = 'warning';
+
+  display.className = 'timer-display' + (cls ? ' ' + cls : '');
+  progress.className = 'timer-progress' + (cls ? ' ' + cls : '');
+}
+
+function tickTimer() {
+  timerRemaining--;
+  if (timerRemaining === 0) beep();
+  updateTimerUI();
+}
+
+function startTimer() {
+  if (timerDuration === 0) return;
+  if (timerRunning) return;
+  timerRunning = true;
+  timerInterval = setInterval(tickTimer, 1000);
+  updateTimerUI();
+}
+
+function stopTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  updateTimerUI();
+}
+
+function toggleTimer() {
+  if (timerDuration === 0) return;
+  if (timerRunning) stopTimer();
+  else startTimer();
+}
+
+function resetTimer() {
+  stopTimer();
+  timerRemaining = timerDuration;
+  updateTimerUI();
+}
+
+function changeTimerDuration() {
+  const sel = document.getElementById('timerDuration');
+  timerDuration = parseInt(sel.value);
+  stopTimer();
+  timerRemaining = timerDuration;
+  updateTimerUI();
+}
+
+function autoStartTimer() {
+  if (timerDuration === 0) return;
+  stopTimer();
+  timerRemaining = timerDuration;
+  startTimer();
+}
+
+// --- Game functions ---
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const leader = state.ended ? leadingPlayer() : -1;
+
+  state.players.forEach((player, pi) => {
+    const card = document.createElement('div');
+    card.className = 'player-card' +
+      (pi === state.currentPlayer && !state.ended ? ' active' : '') +
+      (pi === leader && state.ended ? ' winner' : '');
+
+    let turnsHtml = '';
+    let running = 0;
+    player.turns.forEach((score, ti) => {
+      running += score;
+      turnsHtml += `<div class="turn-row">
+        <span>Turn ${ti + 1}</span>
+        <span class="turn-score ${score < 0 ? 'negative' : ''}">${score >= 0 ? '+' : ''}${score}</span>
+        <span class="turn-running">${running}</span>
+        ${!state.ended ? `<button class="turn-del" onclick="delTurn(${pi},${ti})" title="Delete">&times;</button>` : ''}
+      </div>`;
+    });
+
+    card.innerHTML = `
+      <div class="player-header">
+        <input class="player-name" value="${player.name}" onchange="rename(${pi}, this.value)"
+          ${state.ended ? 'disabled' : ''}>
+        <span class="total-score">${pi === leader && state.ended ? '<span class="crown">&#9819;</span> ' : ''}${total(player)}</span>
+      </div>
+      <div class="turns">${turnsHtml}</div>
+      ${!state.ended ? `<div class="add-score">
+        <input type="number" id="input-${pi}" placeholder="Score" onkeydown="if(event.key==='Enter')addScore(${pi})">
+        <button onclick="addScore(${pi})">+</button>
+      </div>` : ''}
+    `;
+    board.appendChild(card);
+  });
+
+  document.getElementById('roundInfo').textContent =
+    state.ended ? 'Game Over!' : `Round ${currentRound()} \u2014 ${state.players[state.currentPlayer].name}'s turn`;
+
+  document.querySelectorAll('.turns').forEach(el => el.scrollTop = el.scrollHeight);
+  save();
+}
+
+function addScore(pi) {
+  const input = document.getElementById(`input-${pi}`);
+  const val = parseInt(input.value);
+  if (isNaN(val)) return;
+  state.players[pi].turns.push(val);
+  input.value = '';
+  state.currentPlayer = (pi + 1) % 4;
+  render();
+  // auto-start timer for next player
+  autoStartTimer();
+}
+
+function delTurn(pi, ti) {
+  state.players[pi].turns.splice(ti, 1);
+  render();
+}
+
+function rename(pi, name) {
+  state.players[pi].name = name || `Player ${pi + 1}`;
+  save();
+}
+
+function undoLast() {
+  let lastPi = (state.currentPlayer - 1 + 4) % 4;
+  for (let i = 0; i < 4; i++) {
+    if (state.players[lastPi].turns.length > 0) break;
+    lastPi = (lastPi - 1 + 4) % 4;
+  }
+  if (state.players[lastPi].turns.length > 0) {
+    state.players[lastPi].turns.pop();
+    state.currentPlayer = lastPi;
+    state.ended = false;
+    render();
+    resetTimer();
+  }
+}
+
+function endGame() {
+  stopTimer();
+  state.players.forEach(p => {
+    const deduction = prompt(`Remaining tile points for ${p.name}? (Enter 0 if none)`, '0');
+    const val = parseInt(deduction);
+    if (!isNaN(val) && val > 0) {
+      p.turns.push(-val);
+    }
+  });
+  state.ended = true;
+  render();
+}
+
+function newGame() {
+  if (!confirm('Start a new game? Current scores will be lost.')) return;
+  const names = state.players.map(p => p.name);
+  state = freshState();
+  state.players.forEach((p, i) => p.name = names[i]);
+  resetTimer();
+  render();
+}
+
+render();
+updateTimerUI();
+</script>
+</body>
+</html>

@@ -212,6 +212,168 @@
     margin-bottom: 14px;
   }
   .crown { font-size: 1rem; }
+
+  /* History panel */
+  .history-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #16213e;
+    color: #f0c040;
+    border: 1px solid #f0c040;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 1000;
+  }
+  .history-toggle:hover { background: #f0c040; color: #1a1a2e; }
+  .history-panel {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 400px;
+    height: 100vh;
+    background: #0f1a30;
+    border-left: 2px solid #333;
+    z-index: 999;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .history-panel.open { right: 0; }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #222;
+  }
+  .history-header h2 {
+    font-size: 1.1rem;
+    color: #f0c040;
+    font-weight: 700;
+  }
+  .history-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .history-close:hover { color: #eee; }
+  .history-stats {
+    padding: 12px 20px;
+    border-bottom: 1px solid #222;
+    font-size: 0.8rem;
+    color: #888;
+    display: flex;
+    gap: 16px;
+  }
+  .history-stats span { color: #ccc; font-weight: 600; }
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+  }
+  .history-empty {
+    text-align: center;
+    color: #555;
+    padding: 40px 20px;
+    font-size: 0.9rem;
+  }
+  .history-game {
+    background: #16213e;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border: 1px solid #222;
+  }
+  .history-game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .history-game-date {
+    font-size: 0.8rem;
+    color: #888;
+  }
+  .history-game-rounds {
+    font-size: 0.75rem;
+    color: #666;
+  }
+  .history-game-del {
+    background: none;
+    border: none;
+    color: #444;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+  }
+  .history-game-del:hover { color: #e74c3c; }
+  .history-player-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 0.85rem;
+  }
+  .history-player-name {
+    flex: 1;
+  }
+  .history-player-score {
+    font-weight: 700;
+    min-width: 50px;
+    text-align: right;
+  }
+  .history-player-row.winner .history-player-name { color: #4ecca3; }
+  .history-player-row.winner .history-player-score { color: #4ecca3; }
+  .history-player-row.winner::before {
+    content: '\265B ';
+    color: #4ecca3;
+    font-size: 0.8rem;
+  }
+  .history-clear {
+    padding: 12px 20px;
+    border-top: 1px solid #222;
+  }
+  .history-clear button {
+    width: 100%;
+    background: #16213e;
+    color: #888;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .history-clear button:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  /* Leaderboard section in history */
+  .leaderboard {
+    padding: 12px 20px;
+    border-bottom: 1px solid #222;
+  }
+  .leaderboard h3 {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .lb-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding: 2px 0;
+  }
+  .lb-wins { color: #4ecca3; font-weight: 600; }
+  .lb-avg { color: #888; }
 </style>
 </head>
 <body>
@@ -246,12 +408,33 @@
   <button class="danger" onclick="newGame()">New Game</button>
 </div>
 
+<!-- History toggle button -->
+<button class="history-toggle" id="historyToggle" onclick="toggleHistory()">
+  History <span id="historyCount"></span>
+</button>
+
+<!-- History panel -->
+<div class="history-panel" id="historyPanel">
+  <div class="history-header">
+    <h2>Game History</h2>
+    <button class="history-close" onclick="toggleHistory()">&times;</button>
+  </div>
+  <div class="history-stats" id="historyStats"></div>
+  <div class="leaderboard" id="leaderboard"></div>
+  <div class="history-list" id="historyList"></div>
+  <div class="history-clear">
+    <button onclick="clearHistory()">Clear All History</button>
+  </div>
+</div>
+
 <script>
 const SAVE_KEY = 'scramblekeeper';
+const HISTORY_KEY = 'scramblekeeper_history';
 let state = loadState() || freshState();
+let history = loadHistory();
 
 // Timer state
-let timerDuration = 120; // seconds
+let timerDuration = 120;
 let timerRemaining = 120;
 let timerRunning = false;
 let timerInterval = null;
@@ -281,6 +464,17 @@ function save() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 }
 
+function loadHistory() {
+  try {
+    const h = localStorage.getItem(HISTORY_KEY);
+    return h ? JSON.parse(h) : [];
+  } catch { return []; }
+}
+
+function saveHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
 function total(player) {
   return player.turns.reduce((s, t) => s + t, 0);
 }
@@ -297,6 +491,129 @@ function leadingPlayer() {
     if (t > best) { best = t; idx = i; }
   });
   return idx;
+}
+
+// --- History functions ---
+function saveGameToHistory() {
+  // only save if at least one player has a turn
+  if (state.players.every(p => p.turns.length === 0)) return;
+
+  const record = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    rounds: Math.max(...state.players.map(p => p.turns.length)),
+    players: state.players.map(p => ({
+      name: p.name,
+      score: total(p),
+      turns: [...p.turns]
+    }))
+  };
+
+  // determine winner
+  let best = -Infinity;
+  record.players.forEach(p => { if (p.score > best) best = p.score; });
+  record.players.forEach(p => { p.winner = p.score === best; });
+
+  history.unshift(record);
+  saveHistory();
+  updateHistoryBadge();
+}
+
+function deleteGameFromHistory(id) {
+  history = history.filter(g => g.id !== id);
+  saveHistory();
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('Delete all game history? This cannot be undone.')) return;
+  history = [];
+  saveHistory();
+  renderHistory();
+}
+
+function toggleHistory() {
+  document.getElementById('historyPanel').classList.toggle('open');
+  renderHistory();
+}
+
+function updateHistoryBadge() {
+  const el = document.getElementById('historyCount');
+  el.textContent = history.length > 0 ? `(${history.length})` : '';
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const stats = document.getElementById('historyStats');
+  const lb = document.getElementById('leaderboard');
+
+  // Stats
+  if (history.length === 0) {
+    stats.innerHTML = 'No games played yet';
+    lb.style.display = 'none';
+  } else {
+    const allScores = history.flatMap(g => g.players.map(p => p.score));
+    const highScore = Math.max(...allScores);
+    const avgScore = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+    stats.innerHTML = `
+      Games: <span>${history.length}</span> &nbsp;|&nbsp;
+      High score: <span>${highScore}</span> &nbsp;|&nbsp;
+      Avg: <span>${avgScore}</span>
+    `;
+
+    // Leaderboard - win counts and average scores per player
+    const playerStats = {};
+    history.forEach(g => {
+      g.players.forEach(p => {
+        if (!playerStats[p.name]) playerStats[p.name] = { wins: 0, totalScore: 0, games: 0 };
+        playerStats[p.name].games++;
+        playerStats[p.name].totalScore += p.score;
+        if (p.winner) playerStats[p.name].wins++;
+      });
+    });
+
+    const sorted = Object.entries(playerStats).sort((a, b) => b[1].wins - a[1].wins || (b[1].totalScore / b[1].games) - (a[1].totalScore / a[1].games));
+
+    lb.style.display = 'block';
+    lb.innerHTML = '<h3>All-Time Leaderboard</h3>' + sorted.map(([name, s]) =>
+      `<div class="lb-row">
+        <span>${name}</span>
+        <span><span class="lb-wins">${s.wins}W</span> <span class="lb-avg">(avg ${Math.round(s.totalScore / s.games)})</span></span>
+      </div>`
+    ).join('');
+  }
+
+  // Game list
+  if (history.length === 0) {
+    list.innerHTML = '<div class="history-empty">Finished games will appear here.<br>Use "End Game" or "New Game" to save.</div>';
+    return;
+  }
+
+  list.innerHTML = history.map(game => {
+    const d = new Date(game.date);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    const playersHtml = game.players
+      .sort((a, b) => b.score - a.score)
+      .map(p => `<div class="history-player-row ${p.winner ? 'winner' : ''}">
+        <span class="history-player-name">${p.name}</span>
+        <span class="history-player-score">${p.score}</span>
+      </div>`).join('');
+
+    return `<div class="history-game">
+      <div class="history-game-header">
+        <div>
+          <div class="history-game-date">${dateStr} at ${timeStr}</div>
+          <div class="history-game-rounds">${game.rounds} rounds</div>
+        </div>
+        <button class="history-game-del" onclick="deleteGameFromHistory(${game.id})" title="Delete">&times;</button>
+      </div>
+      ${playersHtml}
+    </div>`;
+  }).join('');
+
+  updateHistoryBadge();
 }
 
 // --- Timer functions ---
@@ -353,7 +670,6 @@ function updateTimerUI() {
   const pct = Math.max(0, (timerRemaining / timerDuration) * 100);
   progress.style.width = pct + '%';
 
-  // color states
   let cls = '';
   if (timerRemaining <= 0) cls = 'over';
   else if (timerRemaining <= 15) cls = 'danger';
@@ -465,7 +781,6 @@ function addScore(pi) {
   input.value = '';
   state.currentPlayer = (pi + 1) % 4;
   render();
-  // auto-start timer for next player
   autoStartTimer();
 }
 
@@ -505,10 +820,13 @@ function endGame() {
   });
   state.ended = true;
   render();
+  saveGameToHistory();
 }
 
 function newGame() {
   if (!confirm('Start a new game? Current scores will be lost.')) return;
+  // save current game to history if it has any turns
+  if (!state.ended) saveGameToHistory();
   const names = state.players.map(p => p.name);
   state = freshState();
   state.players.forEach((p, i) => p.name = names[i]);
@@ -518,6 +836,7 @@ function newGame() {
 
 render();
 updateTimerUI();
+updateHistoryBadge();
 </script>
 </body>
 </html>
